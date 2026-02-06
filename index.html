@@ -11,7 +11,6 @@
   <!-- BACKGROUND MATRIX CANVAS -->
   <canvas id="matrixCanvas" aria-hidden="true"></canvas>
 
-  <!-- APP SHELL -->
   <div class="app" id="app">
 
     <!-- TOP BAR -->
@@ -30,17 +29,17 @@
       <div class="topbar__right">
         <div class="timer">
           <span class="timer__label">TIMER</span>
-          <span class="timer__value" id="timerValue">00:00</span>
+          <span class="timer__value" id="timerValue">01:00</span>
         </div>
       </div>
     </header>
 
-    <!-- SCREEN 1 -->
-    <main class="screen screen--active" id="screenForm" role="main">
+    <!-- SCREEN 1 — FORM -->
+    <main class="screen screen--active" id="screenForm" role="main" aria-hidden="false">
       <section class="panel panel--form">
         <h1 class="panel__title">LEAD INPUT TERMINAL</h1>
         <p class="panel__subtitle">
-          Эта штука выглядит как спецслужбы, но это <b>мемный MVP</b>. Никаких API. Всё рандом.
+           Никаких API. Всё рандом. Выглядит как спецслужбы.
         </p>
 
         <div class="form">
@@ -54,7 +53,7 @@
             <input class="field__input" id="lastName" type="text" placeholder="Anderson" autocomplete="off" />
           </label>
 
-          <button class="btn btn--primary" id="btnStart">
+          <button class="btn btn--primary" id="btnStart" type="button">
             НАЧАТЬ ГЕНЕРАЦИЮ
           </button>
 
@@ -87,15 +86,15 @@
         <div class="microcard">
           <div class="microcard__title">NOTICE</div>
           <div class="microcard__text">
-            Это визуальный “генератор лидов”.<br/>
-            Никаких реальных данных. Только рандом.<br/>
-            Максимум пафоса. Минимум смысла.
+            Это“генератор лидов”.<br/>
+            Только реальные данные.<br/>
+            Скан “лиц”.
           </div>
         </div>
       </section>
     </main>
 
-    <!-- SCREEN 2 -->
+    <!-- SCREEN 2 — MATRIX -->
     <main class="screen" id="screenMatrix" role="main" aria-hidden="true">
       <section class="hud">
         <div class="hud__left">
@@ -118,16 +117,19 @@
               <div class="card__v" id="outName">—</div>
               <div class="card__s" id="stName">waiting…</div>
             </div>
+
             <div class="card" id="cardSurname">
               <div class="card__k">SURNAME</div>
               <div class="card__v" id="outSurname">—</div>
               <div class="card__s" id="stSurname">waiting…</div>
             </div>
+
             <div class="card" id="cardEmail">
               <div class="card__k">EMAIL</div>
               <div class="card__v" id="outEmail">—</div>
               <div class="card__s" id="stEmail">waiting…</div>
             </div>
+
             <div class="card" id="cardPhone">
               <div class="card__k">PHONE</div>
               <div class="card__v" id="outPhone">—</div>
@@ -175,17 +177,13 @@
     <!-- FINAL MEM OVERLAY -->
     <div class="final hidden" id="finalOverlay" aria-hidden="true">
       <div class="final__media">
-        <img id="finalImg" alt="meme" />
-        <div class="final__fallback hidden" id="finalFallback">
-          <div class="fallback__emoji">🦍🖕</div>
-          <div class="fallback__text">meme payload missing<br/>but the system is still disrespectful</div>
-        </div>
+        <img id="finalImg" alt="meme" src="./assets/final.jpg" />
       </div>
 
       <div class="final__hud">
         <div class="final__title">LEAD GENERATED SUCCESSFULLY</div>
         <div class="final__sub">status: ABSURD • clearance: MAXIMUM • output: QUESTIONABLE</div>
-        <button class="btn btn--ghost btn--big" id="btnAgain">СГЕНЕРИРОВАТЬ ЕЩЁ</button>
+        <button class="btn btn--ghost btn--big" id="btnAgain" type="button">СГЕНЕРИРОВАТЬ ЕЩЁ</button>
       </div>
     </div>
 
