@@ -277,6 +277,7 @@ body{
   color: rgba(230,255,240,0.92);
 }
 
+/* FINAL OVERLAY */
 .final{
   position:fixed;
   inset:0;
@@ -286,19 +287,34 @@ body{
   align-items:center;
   justify-content:center;
 }
-
 .final.hidden{ display:none; }
 
-/* FIX: картинка всегда помещается в экран, не обрезается и не “вылезает” */
+/* Картинка всегда помещается в экран */
 .final img{
-  display: block;
+  display:block;
   max-width: 100vw;
   max-height: 100vh;
-  width: auto;
-  height: auto;
+  width:auto;
+  height:auto;
   object-fit: contain;
-  object-position: center;
-  background: #000;
+  object-position:center;
+  background:#000;
+}
+
+/* Небольшой “сканерный” эффект на самой картинке во время перебора */
+.final.isScanning #finalImg{
+  filter: contrast(1.15) saturate(1.05);
+  animation: imgFlicker 0.22s infinite steps(2, end);
+  will-change: filter, transform;
+}
+
+@keyframes imgFlicker{
+  0%   { transform: translate(0,0) scale(1.000); }
+  20%  { transform: translate(1px,0) scale(1.002); }
+  40%  { transform: translate(-1px,0) scale(1.001); }
+  60%  { transform: translate(0,1px) scale(1.002); }
+  80%  { transform: translate(0,-1px) scale(1.001); }
+  100% { transform: translate(0,0) scale(1.000); }
 }
 
 .final__close{
@@ -312,7 +328,147 @@ body{
   color: rgba(255,255,255,0.92);
   cursor:pointer;
   font-weight:700;
+  z-index: 5;
 }
+
+/* ===== FaceScan HUD ===== */
+.scanHud{
+  position:absolute;
+  inset:0;
+  z-index:4;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding: 18px;
+  color: rgba(200,255,220,0.92);
+  text-shadow: 0 0 10px rgba(53,255,122,0.18);
+}
+
+.scanHud__top{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.scanHud__title{
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid rgba(64,255,128,0.24);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.35);
+}
+
+.scanHud__meta{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: rgba(170,255,195,0.85);
+  padding: 8px 10px;
+  border: 1px solid rgba(64,255,128,0.18);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.30);
+}
+
+.scanHud__sep{ opacity: 0.55; }
+
+.scanFrame{
+  position:absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(72vw, 820px);
+  height: min(64vh, 560px);
+  border: 1px solid rgba(64,255,128,0.20);
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset, 0 0 40px rgba(53,255,122,0.08);
+  overflow: hidden;
+}
+
+.scanFrame__corner{
+  position:absolute;
+  width: 26px;
+  height: 26px;
+  border: 2px solid rgba(53,255,122,0.55);
+}
+.scanFrame__corner.c1{ left: 14px; top: 14px; border-right: none; border-bottom: none; border-top-left-radius: 10px; }
+.scanFrame__corner.c2{ right: 14px; top: 14px; border-left: none; border-bottom: none; border-top-right-radius: 10px; }
+.scanFrame__corner.c3{ left: 14px; bottom: 14px; border-right: none; border-top: none; border-bottom-left-radius: 10px; }
+.scanFrame__corner.c4{ right: 14px; bottom: 14px; border-left: none; border-top: none; border-bottom-right-radius: 10px; }
+
+.scanLine{
+  position:absolute;
+  left:0;
+  right:0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(53,255,122,0.75), transparent);
+  filter: blur(0.2px);
+  opacity: 0.85;
+  transform: translateY(-10%);
+  animation: scanMove 1.05s linear infinite;
+}
+
+@keyframes scanMove{
+  0%   { top: -5%; }
+  100% { top: 105%; }
+}
+
+.scanNoise{
+  position:absolute;
+  inset:0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(53,255,122,0.05) 0px,
+      rgba(53,255,122,0.05) 1px,
+      rgba(0,0,0,0.00) 2px,
+      rgba(0,0,0,0.00) 6px
+    );
+  opacity: 0.45;
+  mix-blend-mode: screen;
+}
+
+.scanHud__bottom{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.scanHud__bar{
+  width: 360px;
+  max-width: 72vw;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(64,255,128,0.20);
+  background: rgba(0,0,0,0.35);
+  overflow:hidden;
+}
+
+.scanHud__barFill{
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(53,255,122,0.25), rgba(53,255,122,0.85), rgba(53,255,122,0.25));
+  box-shadow: 0 0 18px rgba(53,255,122,0.18);
+}
+
+.scanHud__hint{
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  color: rgba(170,255,195,0.75);
+  padding: 8px 10px;
+  border: 1px solid rgba(64,255,128,0.18);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.30);
+  max-width: 72vw;
+}
+
+/* HUD виден только когда открыт final */
+.final.hidden .scanHud{ display:none; }
 
 @media (max-width: 980px){
   body{ overflow:auto; }
@@ -322,4 +478,8 @@ body{
     height:auto;
   }
   .panel--right{ min-height: 520px; }
+
+  .scanHud__bar{
+    width: 78vw;
+  }
 }
