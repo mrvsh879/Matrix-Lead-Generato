@@ -202,4 +202,123 @@ body{
   font-size:12px;
   color: var(--muted);
   letter-spacing:0.10em;
-  margi
+  margin-bottom:8px;
+}
+.result__box{
+  margin:0;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid rgba(64,255,128,0.18);
+  background: rgba(0,0,0,0.42);
+  min-height:130px;
+  max-height:220px;
+  overflow:auto;
+  color: rgba(220,255,235,0.95);
+}
+
+.terminal{
+  flex:1;
+  border-radius:14px;
+  border:1px solid rgba(64,255,128,0.22);
+  background: rgba(0,0,0,0.48);
+  overflow:hidden;
+}
+.terminal__top{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-bottom:1px solid rgba(64,255,128,0.18);
+  background: rgba(0,0,0,0.35);
+}
+.dot{
+  width:10px; height:10px; border-radius:50%;
+  display:inline-block;
+}
+.dot--r{ background:#ff4d4d; }
+.dot--y{ background:#ffcc00; }
+.dot--g{ background:#32ff7a; }
+.terminal__title{
+  margin-left:6px;
+  font-size:12px;
+  color: var(--muted);
+  letter-spacing:0.08em;
+}
+.terminal__body{
+  padding:12px;
+  height:100%;
+  overflow:auto;
+  font-size:12px;
+  line-height:1.45;
+  color: rgba(210,255,225,0.90);
+  white-space:pre-wrap;
+}
+
+.mini{
+  border-radius:14px;
+  border:1px solid rgba(64,255,128,0.22);
+  background: rgba(0,0,0,0.42);
+  padding:12px;
+  display:grid;
+  gap:10px;
+}
+.mini__row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+}
+.mini__k{
+  color: var(--muted);
+  font-size:12px;
+  letter-spacing:0.08em;
+}
+.mini__v{
+  font-weight:700;
+  color: rgba(230,255,240,0.92);
+}
+
+.final{
+  position:fixed;
+  inset:0;
+  z-index:999;
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.final.hidden{ display:none; }
+
+/* === FIX: картинка всегда влезает в экран (contain + ограничения) === */
+.final img{
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  background: #000;
+}
+
+.final__close{
+  position:absolute;
+  top:16px;
+  right:16px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.92);
+  cursor:pointer;
+  font-weight:700;
+}
+
+@media (max-width: 980px){
+  body{ overflow:auto; }
+  #matrix{ position:fixed; }
+  .layout{
+    grid-template-columns: 1fr;
+    height:auto;
+  }
+  .panel--right{ min-height: 520px; }
+}
