@@ -27,31 +27,34 @@
   <main class="layout">
     <section class="panel">
       <h1 class="panel__title">Генерация лида</h1>
+      <p class="panel__hint">
+        Введи любые данные, нажми <b>Generate</b>. В течение 30 секунд “матрица” будет пытаться собрать лида.
+      </p>
 
       <div class="form">
         <label class="field">
           <span class="field__label">Full name</span>
-          <input id="name" class="field__input" />
+          <input id="name" class="field__input" type="text" placeholder="John Anderson" autocomplete="off" />
         </label>
 
         <label class="field">
           <span class="field__label">Email</span>
-          <input id="email" class="field__input" />
+          <input id="email" class="field__input" type="email" placeholder="john@domain.com" autocomplete="off" />
         </label>
 
         <label class="field">
           <span class="field__label">Phone</span>
-          <input id="phone" class="field__input" />
+          <input id="phone" class="field__input" type="tel" placeholder="+49 151 2345 6789" autocomplete="off" />
         </label>
 
         <label class="field">
           <span class="field__label">Country</span>
-          <input id="country" class="field__input" />
+          <input id="country" class="field__input" type="text" placeholder="Germany" autocomplete="off" />
         </label>
 
         <div class="actions">
           <button id="startBtn" class="btn btn--primary">Generate lead</button>
-          <button id="resetBtn" class="btn btn--ghost">Reset</button>
+          <button id="resetBtn" class="btn btn--ghost" type="button">Reset</button>
         </div>
       </div>
 
@@ -75,16 +78,29 @@
       </div>
 
       <div class="mini">
-        <div class="mini__row"><div>Mode</div><div id="mode">idle</div></div>
-        <div class="mini__row"><div>Progress</div><div><span id="progress">0</span>%</div></div>
-        <div class="mini__row"><div>Integrity</div><div id="integrity">unknown</div></div>
+        <div class="mini__row">
+          <div class="mini__k">Mode</div>
+          <div class="mini__v" id="mode">idle</div>
+        </div>
+        <div class="mini__row">
+          <div class="mini__k">Progress</div>
+          <div class="mini__v"><span id="progress">0</span>%</div>
+        </div>
+        <div class="mini__row">
+          <div class="mini__k">Integrity</div>
+          <div class="mini__v" id="integrity">unknown</div>
+        </div>
       </div>
     </section>
   </main>
 
-  <!-- FINAL SCREEN -->
+  <!-- Финальный фуллскрин-оверлей -->
   <div class="final hidden" id="final">
-    <img id="finalImg" src="./assets/final.jpg" alt="final" />
+    <img
+      id="finalImg"
+      alt="final"
+      src="./assets/final.jpg"
+    />
     <button class="final__close" id="finalClose">Close</button>
   </div>
 
