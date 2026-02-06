@@ -1,463 +1,742 @@
 (() => {
   "use strict";
 
-  // =========================
-  // DOM
-  // =========================
+  // ============================================================
+  // MEME MVP — Matrix Lead Generator
+  // - No APIs, no real data, everything random
+  // - Two screens: form -> matrix
+  // - Staged "assembly": name -> surname -> email -> phone
+  // - Fast face scanning: super fast switching between generated faces (no external assets needed)
+  // - Final: gorilla meme full screen + "LEAD GENERATED SUCCESSFULLY"
+  // ============================================================
+
+  // -----------------------------
+  // DOM helpers
+  // -----------------------------
   const $ = (id) => document.getElementById(id);
 
-  const canvas = $("matrix");
+  // Screens
+  const screenForm = $("screenForm");
+  const screenMatrix = $("screenMatrix");
+  const btnStart = $("btnStart");
+  const btnAgain = $("btnAgain");
+
+  // Topbar
+  const sysState = $("sysState");
+  const sysSession = $("sysSession");
+  const timerValue = $("timerValue");
+
+  // Form fields
+  const firstNameInput = $("firstName");
+  const lastNameInput = $("lastName");
+  const bootLog = $("bootLog");
+
+  // Matrix UI (output)
+  const progressPct = $("progressPct");
+  const progressFill = $("progressFill");
+
+  const outName = $("outName");
+  const outSurname = $("outSurname");
+  const outEmail = $("outEmail");
+  const outPhone = $("outPhone");
+
+  const stName = $("stName");
+  const stSurname = $("stSurname");
+  const stEmail = $("stEmail");
+  const stPhone = $("stPhone");
+
+  const faceImg = $("faceImg");
+  const faceStage = $("faceStage");
+  const faceScore = $("faceScore");
+  const faceBar = $("faceBar");
+  const faceHint = $("faceHint");
+
+  const opsLog = $("opsLog");
+
+  // Final overlay
+  const finalOverlay = $("finalOverlay");
+  const finalImg = $("finalImg");
+  const finalFallback = $("finalFallback");
+
+  // Canvas
+  const canvas = $("matrixCanvas");
   const ctx = canvas.getContext("2d");
 
-  const statusPill = $("statusPill");
-  const timerEl = $("timer");
-
-  const nameEl = $("name");
-  const emailEl = $("email");
-  const phoneEl = $("phone");
-  const countryEl = $("country");
-
-  const startBtn = $("startBtn");
-  const resetBtn = $("resetBtn");
-
-  const outputEl = $("output");
-  const logEl = $("log");
-
-  const modeEl = $("mode");
-  const progressEl = $("progress");
-  const integrityEl = $("integrity");
-
-  const finalEl = $("final");
-  const finalClose = $("finalClose");
-  const finalImg = $("finalImg");
-
-  // FaceScan HUD elements
-  const scanStageEl = $("scanStage");
-  const scanPctEl = $("scanPct");
-  const scanMsgEl = $("scanMsg");
-  const scanBarEl = $("scanBar");
-
-  // =========================
+  // -----------------------------
   // Config
-  // =========================
-  const DURATION_MS = 60000; // 60 секунд
-  const FINAL_IMAGE_URL = "./assets/final.jpg";
+  // -----------------------------
+  const CONFIG = {
+    // Duration of matrix stage (30–60 sec). Set anywhere in this range.
+    DURATION_MS: 45000, // 45 sec by default
 
-  // 6 альтов + (опционально) финал
-  const SHUFFLE_IMAGES = [
-    "./assets/alt1.jpg",
-    "./assets/alt2.jpg",
-    "./assets/alt3.jpg",
-    "./assets/alt4.jpg",
-    "./assets/alt5.jpg",
-    "./assets/alt6.jpg"
-  ];
+    // How fast the face "scanner" switches faces (ms). Smaller = faster.
+    FACE_SWITCH_MS: 55,
 
-  // когда включать “сканер лиц” (последние N мс)
-  const SCAN_WINDOW_MS = 9000;     // последние 9 секунд
-  const SHUFFLE_INTERVAL_MS = 55;  // очень быстро (55мс)
+    // Internal phases timings (fractions of total)
+    PHASES: {
+      name:   { start: 0.07, end: 0.33 },
+      surname:{ start: 0.28, end: 0.55 },
+      email:  { start: 0.50, end: 0.78 },
+      phone:  { start: 0.72, end: 0.95 },
+      finalize:{start: 0.94, end: 1.00 }
+    },
 
-  // Matrix rain settings
-  const CHARS = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@%&*+-=<>[]{}()";
-  let fontSize = 16;
-  let columns = 0;
-  let drops = [];
-  let w = 0, h = 0;
+    // Matrix rain
+    MATRIX: {
+      chars: "01ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@%&*+-=<>[]{}()",
+      baseFont: 16,
+      mobileFont: 14,
+      fadeAlphaBase: 0.08
+    },
 
-  // Runtime
-  let running = false;
-  let startAt = 0;
-  let rafId = 0;
-  let tickId = 0;
-  let assembleId = 0;
+    // Final gorilla meme image (remote).
+    // If it fails to load (blocked/hotlink) — fallback overlay is shown.
+    GORILLA_URL: "https://i.pinimg.com/originals/a2/36/20/a23620bbf4143ab4b90a462e59c25dad.jpg"
+  };
 
-  // FaceScan runtime
-  let shuffleId = 0;
-  let scanStartAt = 0;
-  let scanIndex = 0;
+  // -----------------------------
+  // State
+  // -----------------------------
+  const State = {
+    running: false,
+    sessionId: "",
+    startAt: 0,
+    rafId: 0,
+    tickId: 0,
+    faceId: 0,
 
-  // =========================
-  // Helpers
-  // =========================
+    // Generated lead result
+    lead: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: ""
+    },
+
+    // Face scanning generated images (data URLs)
+    faces: [],
+    faceIndex: 0,
+
+    // Matrix engine
+    w: 0,
+    h: 0,
+    fontSize: 16,
+    columns: 0,
+    drops: []
+  };
+
+  // -----------------------------
+  // Utilities
+  // -----------------------------
   function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+  function rndInt(a, b){ return a + Math.floor(Math.random() * (b - a + 1)); }
+  function pick(arr){ return arr[(Math.random() * arr.length) | 0]; }
 
   function pad2(n){
     n = Math.floor(n);
     return (n < 10 ? "0" : "") + n;
   }
 
-  function setStatus(text, isRunning){
-    statusPill.textContent = text;
-    statusPill.classList.toggle("running", !!isRunning);
-  }
-
-  function setMode(text){ modeEl.textContent = text; }
-  function setIntegrity(text){ integrityEl.textContent = text; }
-
-  function setTimer(msLeft){
-    const s = clamp(Math.ceil(msLeft / 1000), 0, 9999);
+  function msToMMSS(ms){
+    const s = Math.max(0, Math.ceil(ms / 1000));
     const mm = Math.floor(s / 60);
     const ss = s % 60;
-    timerEl.textContent = `${pad2(mm)}:${pad2(ss)}`;
+    return `${pad2(mm)}:${pad2(ss)}`;
   }
 
-  function log(line){
-    const ts = new Date().toLocaleTimeString();
-    logEl.textContent += `[${ts}] ${line}\n`;
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  function setOutput(text){
-    outputEl.textContent = text;
-  }
-
-  function getLeadSeed(){
-    const name = (nameEl.value || "Unknown").trim();
-    const email = (emailEl.value || "unknown@void.matrix").trim();
-    const phone = (phoneEl.value || "+00 000 000 000").trim();
-    const country = (countryEl.value || "N/A").trim();
-
-    return { name, email, phone, country };
-  }
-
-  function randomHex(n=8){
+  function randomHex(n=12){
     const chars = "abcdef0123456789";
     let out = "";
     for(let i=0;i<n;i++) out += chars[(Math.random()*chars.length)|0];
     return out;
   }
 
-  function buildAssemblerText(seed, pct){
-    const id = `LD-${randomHex(4).toUpperCase()}-${randomHex(4).toUpperCase()}`;
-    const score = Math.round( clamp( (pct/100) * 0.82 + Math.random()*0.18, 0, 1) * 1000 ) / 10;
-
-    const lines = [
-      ">> MATRIX LEAD ASSEMBLER",
-      `session_id: ${randomHex(12)}`,
-      `lead_id: ${id}`,
-      `progress: ${pct}%`,
-      `candidate.name: ${seed.name}`,
-      `candidate.email: ${seed.email}`,
-      `candidate.phone: ${seed.phone}`,
-      `candidate.country: ${seed.country}`,
-      `signal_strength: ${score}`,
-      `entropy: ${Math.round( (1 - pct/100) * 1000 ) / 10}`,
-      "status: assembling..."
-    ];
-    return lines.join("\n");
+  function logBoot(line){
+    const ts = new Date().toLocaleTimeString();
+    bootLog.textContent += `[${ts}] ${line}\n`;
+    bootLog.scrollTop = bootLog.scrollHeight;
   }
 
-  function setScanHUD(stage, pct, msg){
-    if(scanStageEl) scanStageEl.textContent = stage;
-    if(scanPctEl) scanPctEl.textContent = `${pct}%`;
-    if(scanMsgEl) scanMsgEl.textContent = msg;
-    if(scanBarEl) scanBarEl.style.width = `${pct}%`;
+  function logOps(line){
+    const ts = new Date().toLocaleTimeString();
+    opsLog.textContent += `[${ts}] ${line}\n`;
+    opsLog.scrollTop = opsLog.scrollHeight;
   }
 
-  function preloadImages(urls){
-    // Не критично, но уменьшает “мигание” от загрузки на старте scan
-    urls.forEach((u) => {
-      const img = new Image();
-      img.src = u;
-    });
+  function setSystem(stateText){
+    sysState.textContent = stateText;
   }
 
-  // =========================
-  // Canvas: resize + matrix
-  // =========================
-  function resize(){
+  function setSession(id){
+    sysSession.textContent = id;
+  }
+
+  function setProgress(pct){
+    const p = clamp(pct, 0, 100);
+    progressPct.textContent = `${p}%`;
+    progressFill.style.width = `${p}%`;
+  }
+
+  function setCardStatus(el, text){
+    el.textContent = text;
+  }
+
+  function typewriter(targetEl, fullText, pct){
+    // pct 0..1 controls how many chars are visible
+    const max = fullText.length;
+    const visible = Math.floor(clamp(pct, 0, 1) * max);
+    targetEl.textContent = fullText.slice(0, visible) + (visible < max ? "▍" : "");
+  }
+
+  // -----------------------------
+  // Screen transitions
+  // -----------------------------
+  function showScreenForm(){
+    screenMatrix.classList.remove("screen--active");
+    screenMatrix.setAttribute("aria-hidden", "true");
+
+    screenForm.classList.add("screen--active");
+    screenForm.setAttribute("aria-hidden", "false");
+  }
+
+  function showScreenMatrix(){
+    screenForm.classList.remove("screen--active");
+    screenForm.setAttribute("aria-hidden", "true");
+
+    screenMatrix.classList.add("screen--active");
+    screenMatrix.setAttribute("aria-hidden", "false");
+  }
+
+  function fadeOut(el){
+    el.classList.remove("fadeIn");
+    el.classList.add("fadeOut");
+  }
+
+  function fadeIn(el){
+    el.classList.remove("fadeOut");
+    el.classList.add("fadeIn");
+  }
+
+  // -----------------------------
+  // Fake lead generation
+  // -----------------------------
+  function sanitizeNamePart(s){
+    s = (s || "").trim();
+    if(!s) return "";
+    // Keep letters/numbers, replace spaces with nothing
+    s = s.replace(/\s+/g, "");
+    s = s.replace(/[^\p{L}\p{N}_-]/gu, "");
+    return s;
+  }
+
+  function normalizeForEmail(s){
+    // basic latin-ish for email; keep digits and lowercase
+    // If non-latin remains, we fallback with random "user"
+    const latin = s
+      .toLowerCase()
+      .replace(/ё/g, "e")
+      .replace(/[^a-z0-9]/g, "");
+
+    return latin;
+  }
+
+  function makeRandomPhone(){
+    // intentionally “international-ish”
+    const cc = pick(["+1", "+44", "+49", "+33", "+48", "+420", "+39"]);
+    const a = rndInt(100, 999);
+    const b = rndInt(100, 999);
+    const c = rndInt(10, 99);
+    const d = rndInt(10, 99);
+    return `${cc} ${a} ${b} ${c} ${d}`;
+  }
+
+  function makeRandomEmail(first, last){
+    const n1 = normalizeForEmail(first);
+    const n2 = normalizeForEmail(last);
+    const suffix = rndInt(10, 999);
+    const dom = pick(["gmail.com", "proton.me", "outlook.com", "mail.com"]);
+    const base = (n1 && n2) ? `${n1}.${n2}${suffix}` :
+                 (n1 || n2) ? `${(n1||n2)}.${rndInt(100,999)}` :
+                 `user.${rndInt(1000,9999)}`;
+    return `${base}@${dom}`;
+  }
+
+  function prepareLeadFromForm(){
+    const f = sanitizeNamePart(firstNameInput.value);
+    const l = sanitizeNamePart(lastNameInput.value);
+
+    State.lead.firstName = f || pick(["Neo","Trinity","Morpheus","Agent","Cipher","Oracle"]);
+    State.lead.lastName = l || pick(["Anderson","Smith","Matrix","Redpill","Zion","Mainframe"]);
+    State.lead.email = makeRandomEmail(State.lead.firstName, State.lead.lastName);
+    State.lead.phone = makeRandomPhone();
+  }
+
+  // -----------------------------
+  // Face scan: generate fake faces (data URLs)
+  // No external assets required.
+  // -----------------------------
+  function generateFaceDataURL(seed){
+    const c = document.createElement("canvas");
+    c.width = 420;
+    c.height = 420;
+    const g = c.getContext("2d");
+
+    // background
+    g.fillStyle = "#0a0f0b";
+    g.fillRect(0,0,c.width,c.height);
+
+    // green-ish gradient
+    const grd = g.createRadialGradient(200,140,30, 210,210,260);
+    grd.addColorStop(0, "rgba(80,255,150,0.25)");
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = grd;
+    g.fillRect(0,0,c.width,c.height);
+
+    // noise pattern
+    for(let i=0;i<1600;i++){
+      const x = (Math.random()*c.width)|0;
+      const y = (Math.random()*c.height)|0;
+      const a = Math.random()*0.22;
+      g.fillStyle = `rgba(57,255,121,${a})`;
+      g.fillRect(x,y,1,1);
+    }
+
+    // pseudo face blob
+    const cx = 210 + rndInt(-10,10);
+    const cy = 215 + rndInt(-10,10);
+    const rx = 125 + rndInt(-12,12);
+    const ry = 150 + rndInt(-12,12);
+
+    g.save();
+    g.translate(cx, cy);
+    g.beginPath();
+    g.ellipse(0, 0, rx, ry, rndInt(-8,8)*Math.PI/180, 0, Math.PI*2);
+    g.closePath();
+    g.clip();
+
+    // inside "face" texture
+    for(let i=0;i<220;i++){
+      const x = rndInt(-rx, rx);
+      const y = rndInt(-ry, ry);
+      const r = rndInt(1,4);
+      const a = Math.random()*0.20;
+      g.fillStyle = `rgba(57,255,121,${a})`;
+      g.beginPath();
+      g.arc(x,y,r,0,Math.PI*2);
+      g.fill();
+    }
+
+    // eyes
+    g.fillStyle = "rgba(235,255,245,0.65)";
+    g.beginPath(); g.arc(-45, -20, 10, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.arc( 45, -20, 10, 0, Math.PI*2); g.fill();
+
+    // pupils
+    g.fillStyle = "rgba(0,0,0,0.85)";
+    g.beginPath(); g.arc(-45 + rndInt(-2,2), -20 + rndInt(-2,2), 4, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.arc( 45 + rndInt(-2,2), -20 + rndInt(-2,2), 4, 0, Math.PI*2); g.fill();
+
+    // mouth
+    g.strokeStyle = "rgba(235,255,245,0.35)";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(0, 55, 38, 0.15*Math.PI, 0.85*Math.PI);
+    g.stroke();
+
+    g.restore();
+
+    // overlay id text
+    g.fillStyle = "rgba(170,255,195,0.65)";
+    g.font = "14px ui-monospace, monospace";
+    g.fillText(`FACE-ID:${seed}`, 16, 26);
+
+    return c.toDataURL("image/png");
+  }
+
+  function buildFacePool(){
+    // build 10–16 generated faces for fast switching
+    const count = rndInt(10, 16);
+    const faces = [];
+    for(let i=0;i<count;i++){
+      faces.push(generateFaceDataURL(randomHex(8).toUpperCase()));
+    }
+    State.faces = faces;
+    State.faceIndex = 0;
+  }
+
+  function startFaceScanner(){
+    stopFaceScanner();
+
+    faceStage.textContent = "SCANNING";
+    faceHint.textContent = "detecting landmarks • extracting embeddings • matching identity fragments";
+    faceBar.style.width = "0%";
+    faceScore.textContent = "0.00";
+
+    State.faceId = setInterval(() => {
+      if(!State.faces.length) return;
+
+      State.faceIndex = (State.faceIndex + 1) % State.faces.length;
+      faceImg.src = State.faces[State.faceIndex];
+
+      // Fake score + bar
+      const s = Math.random() * 0.99;
+      faceScore.textContent = s.toFixed(2);
+      const b = rndInt(10, 100);
+      faceBar.style.width = `${b}%`;
+    }, CONFIG.FACE_SWITCH_MS);
+  }
+
+  function stopFaceScanner(){
+    if(State.faceId){
+      clearInterval(State.faceId);
+      State.faceId = 0;
+    }
+  }
+
+  // -----------------------------
+  // Matrix rain engine
+  // -----------------------------
+  function resizeCanvas(){
     const dpr = Math.max(1, window.devicePixelRatio || 1);
-    w = Math.floor(window.innerWidth);
-    h = Math.floor(window.innerHeight);
+    State.w = Math.floor(window.innerWidth);
+    State.h = Math.floor(window.innerHeight);
 
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
+    canvas.width = Math.floor(State.w * dpr);
+    canvas.height = Math.floor(State.h * dpr);
+    canvas.style.width = State.w + "px";
+    canvas.style.height = State.h + "px";
 
-    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    fontSize = w < 520 ? 14 : 16;
-
-    columns = Math.floor(w / fontSize);
-    drops = new Array(columns).fill(0).map(() => (Math.random()*h/fontSize)|0);
+    State.fontSize = State.w < 520 ? CONFIG.MATRIX.mobileFont : CONFIG.MATRIX.baseFont;
+    State.columns = Math.floor(State.w / State.fontSize);
+    State.drops = new Array(State.columns).fill(0).map(() => (Math.random() * (State.h / State.fontSize)) | 0);
   }
 
-  function drawMatrix(intensity=1){
-    ctx.fillStyle = `rgba(0, 0, 0, ${0.08 + (1-intensity)*0.06})`;
-    ctx.fillRect(0, 0, w, h);
+  function drawMatrix(intensity){
+    // background fade
+    const fade = CONFIG.MATRIX.fadeAlphaBase + (1 - intensity) * 0.06;
+    ctx.fillStyle = `rgba(0, 0, 0, ${fade})`;
+    ctx.fillRect(0, 0, State.w, State.h);
 
-    ctx.font = `${fontSize}px ui-monospace, monospace`;
+    ctx.font = `${State.fontSize}px ui-monospace, monospace`;
     ctx.textBaseline = "top";
 
-    for(let i=0;i<drops.length;i++){
-      const text = CHARS[(Math.random() * CHARS.length) | 0];
-      const x = i * fontSize;
-      const y = drops[i] * fontSize;
+    const chars = CONFIG.MATRIX.chars;
 
-      const alpha = 0.55 + Math.random()*0.35*intensity;
-      ctx.fillStyle = `rgba(53, 255, 122, ${alpha})`;
+    for(let i=0;i<State.drops.length;i++){
+      const text = chars[(Math.random() * chars.length) | 0];
+      const x = i * State.fontSize;
+      const y = State.drops[i] * State.fontSize;
+
+      const a = 0.50 + Math.random() * 0.40 * intensity;
+      ctx.fillStyle = `rgba(57, 255, 121, ${a})`;
       ctx.fillText(text, x, y);
 
-      if(y > h && Math.random() > 0.975){
-        drops[i] = 0;
+      if(y > State.h && Math.random() > 0.975){
+        State.drops[i] = 0;
       } else {
-        drops[i] += 1;
+        State.drops[i] += 1;
       }
     }
   }
 
-  // =========================
-  // Face Scan (перебор фото)
-  // =========================
-  function showFinal(){
-    finalImg.src = FINAL_IMAGE_URL;
-    finalEl.classList.remove("hidden");
-  }
-
-  function startFaceScan(){
-    if(shuffleId) return;
-
-    // Открываем финальный оверлей, но начинаем “скан”
-    showFinal();
-
-    scanStartAt = Date.now();
-    scanIndex = 0;
-
-    finalEl.classList.add("isScanning");
-    setScanHUD("SCAN", 0, "initializing");
-
-    log("facescan: init()");
-    log("facescan: loading candidates...");
-    log("facescan: analyzing facial vectors...");
-
-    shuffleId = setInterval(() => {
-      // Перебор 6 фоток “как сканер”
-      finalImg.src = SHUFFLE_IMAGES[scanIndex % SHUFFLE_IMAGES.length];
-      scanIndex++;
-
-      const elapsed = Date.now() - scanStartAt;
-      const pct = Math.floor(clamp((elapsed / SCAN_WINDOW_MS) * 100, 0, 99));
-
-      const msgs = [
-        "detecting landmarks",
-        "extracting embeddings",
-        "matching identity fragments",
-        "scoring similarity",
-        "verifying checksum",
-        "reducing entropy"
-      ];
-      const msg = msgs[scanIndex % msgs.length];
-
-      setScanHUD("SCAN", pct, msg);
-    }, SHUFFLE_INTERVAL_MS);
-  }
-
-  function stopFaceScanAndLockFinal(){
-    if(shuffleId) clearInterval(shuffleId);
-    shuffleId = 0;
-
-    finalEl.classList.remove("isScanning");
-
-    // фиксируем итог
-    finalImg.src = FINAL_IMAGE_URL;
-    setScanHUD("LOCK", 100, "match locked");
-    log("facescan: match locked");
-    log("facescan: final frame locked");
-  }
-
-  // =========================
-  // Run / Stop
-  // =========================
-  function hardResetUI(){
-    running = false;
-
-    setStatus("IDLE", false);
-    setMode("idle");
-    setIntegrity("unknown");
-    progressEl.textContent = "0";
-    setTimer(DURATION_MS);
-
-    startBtn.disabled = false;
-
-    setOutput("ready.");
-    logEl.textContent = "";
-
-    // reset final overlay + scan hud
-    finalEl.classList.add("hidden");
-    finalEl.classList.remove("isScanning");
-    finalImg.src = FINAL_IMAGE_URL;
-    setScanHUD("IDLE", 0, "waiting");
-  }
-
-  function stopAllTimers(){
-    if(rafId) cancelAnimationFrame(rafId);
-    rafId = 0;
-
-    if(tickId) clearInterval(tickId);
-    tickId = 0;
-
-    if(assembleId) clearInterval(assembleId);
-    assembleId = 0;
-
-    if(shuffleId) clearInterval(shuffleId);
-    shuffleId = 0;
-  }
-
-  function start(){
-    if(running) return;
-
-    // на старте прелоадим alt-фото и финал, чтобы скан был “быстрый”
-    preloadImages([...SHUFFLE_IMAGES, FINAL_IMAGE_URL]);
-
-    const seed = getLeadSeed();
-    running = true;
-    startAt = Date.now();
-
-    setStatus("GENERATING", true);
-    setMode("assembling");
-    setIntegrity("checking...");
-    startBtn.disabled = true;
-
-    log("boot: matrix_rain::init()");
-    log("boot: lead_assembler::start()");
-    log(`seed: name="${seed.name}", email="${seed.email}", phone="${seed.phone}", country="${seed.country}"`);
-
+  function startMatrixLoop(){
     function frame(){
-      if(!running) return;
+      if(!State.running) return;
 
-      const elapsed = Date.now() - startAt;
-      const t = clamp(elapsed / DURATION_MS, 0, 1);
+      const elapsed = Date.now() - State.startAt;
+      const t = clamp(elapsed / CONFIG.DURATION_MS, 0, 1);
       const intensity = 1 - (t * 0.25);
+
       drawMatrix(intensity);
 
-      rafId = requestAnimationFrame(frame);
+      State.rafId = requestAnimationFrame(frame);
     }
     frame();
-
-    tickId = setInterval(() => {
-      if(!running) return;
-
-      const elapsed = Date.now() - startAt;
-      const left = Math.max(0, DURATION_MS - elapsed);
-      setTimer(left);
-
-      const pct = Math.floor(clamp((elapsed / DURATION_MS) * 100, 0, 100));
-      progressEl.textContent = String(pct);
-
-      if(pct < 25) setIntegrity("low");
-      else if(pct < 60) setIntegrity("medium");
-      else if(pct < 90) setIntegrity("high");
-      else setIntegrity("almost");
-
-      // Запускаем Face Scan в последние SCAN_WINDOW_MS
-      if(left <= SCAN_WINDOW_MS && left > 0 && !shuffleId){
-        setMode("facescan");
-        log(`facescan: window opened (${Math.ceil(SCAN_WINDOW_MS/1000)}s)`);
-        startFaceScan();
-      }
-
-      if(left <= 0){
-        finish(seed);
-      }
-    }, 200);
-
-    assembleId = setInterval(() => {
-      if(!running) return;
-
-      const elapsed = Date.now() - startAt;
-      const pct = Math.floor(clamp((elapsed / DURATION_MS) * 100, 0, 100));
-
-      setOutput(buildAssemblerText(seed, pct));
-
-      const r = Math.random();
-      if(r < 0.22) log("matrix: scanning public signals...");
-      else if(r < 0.40) log("assembler: correlating patterns...");
-      else if(r < 0.56) log("assembler: normalizing noise...");
-      else if(r < 0.70) log("matrix: rerouting green streams...");
-      else if(r < 0.82) log("assembler: stitching identity fragments...");
-      else log("matrix: verifying checksum...");
-    }, 650);
   }
 
-  function finish(seed){
-    if(!running) return;
-
-    running = false;
-
-    // останавливаем таймеры, но оставляем финальный экран
-    if(rafId) cancelAnimationFrame(rafId);
-    rafId = 0;
-    if(tickId) clearInterval(tickId);
-    tickId = 0;
-    if(assembleId) clearInterval(assembleId);
-    assembleId = 0;
-
-    setStatus("COMPLETE", false);
-    setMode("complete");
-    setIntegrity("done");
-    progressEl.textContent = "100";
-    setTimer(0);
-
-    log("assembler: finalize()");
-    log("matrix: render_final_payload()");
-    setOutput(
-      [
-        ">> MATRIX LEAD ASSEMBLER",
-        "status: COMPLETE",
-        `result: lead_generated=true`,
-        `name: ${seed.name}`,
-        `email: ${seed.email}`,
-        `phone: ${seed.phone}`,
-        `country: ${seed.country}`,
-        "",
-        ">> SHOWING FINAL SCREEN..."
-      ].join("\n")
-    );
-
-    // Если скан шел — фиксируем финал, если нет — просто показываем финал
-    if(shuffleId){
-      stopFaceScanAndLockFinal();
-    }else{
-      showFinal();
-      setScanHUD("LOCK", 100, "match locked");
+  function stopMatrixLoop(){
+    if(State.rafId){
+      cancelAnimationFrame(State.rafId);
+      State.rafId = 0;
     }
   }
 
-  // =========================
-  // Events
-  // =========================
-  window.addEventListener("resize", resize);
+  // -----------------------------
+  // Staged assembly (UI)
+  // -----------------------------
+  function resetAssemblyUI(){
+    setProgress(0);
 
-  startBtn.addEventListener("click", () => {
-    // если уже открыт финал — не стартуем
-    if(!finalEl.classList.contains("hidden")) return;
-    start();
-  });
+    outName.textContent = "—";
+    outSurname.textContent = "—";
+    outEmail.textContent = "—";
+    outPhone.textContent = "—";
 
-  resetBtn.addEventListener("click", () => {
-    stopAllTimers();
-    hardResetUI();
-  });
+    stName.textContent = "waiting…";
+    stSurname.textContent = "waiting…";
+    stEmail.textContent = "waiting…";
+    stPhone.textContent = "waiting…";
 
-  finalClose.addEventListener("click", () => {
-    finalEl.classList.add("hidden");
-    // если пользователь закрыл во время скана — стопаем скан и фиксируем
-    if(shuffleId){
-      stopFaceScanAndLockFinal();
+    faceImg.removeAttribute("src");
+    faceStage.textContent = "IDLE";
+    faceScore.textContent = "0.00";
+    faceBar.style.width = "0%";
+    faceHint.textContent = "waiting for target…";
+
+    opsLog.textContent = "";
+  }
+
+  function setStageText(){
+    // "serious" log flavor
+    const lines = [
+      "handshake: ok",
+      "uplink: secure",
+      "protocol: green-only",
+      "trace: none",
+      "entropy: decreasing",
+      "vector: stabilizing",
+      "checksum: pending",
+      "clearance: ultra-green",
+      "signal: strong",
+      "target: acquired?"
+    ];
+    logOps(pick(lines));
+  }
+
+  function updateAssembly(elapsed){
+    const t = clamp(elapsed / CONFIG.DURATION_MS, 0, 1);
+    setProgress(Math.floor(t * 100));
+
+    // phases
+    const P = CONFIG.PHASES;
+
+    // NAME
+    const tn = clamp((t - P.name.start) / (P.name.end - P.name.start), 0, 1);
+    if(t < P.name.start){
+      outName.textContent = "—";
+      stName.textContent = "waiting…";
+    } else if(t <= P.name.end){
+      stName.textContent = "assembling…";
+      typewriter(outName, State.lead.firstName, tn);
+    } else {
+      outName.textContent = State.lead.firstName;
+      stName.textContent = "locked ✓";
     }
-  });
 
-  // =========================
-  // Init
-  // =========================
-  resize();
-  hardResetUI();
+    // SURNAME
+    const ts = clamp((t - P.surname.start) / (P.surname.end - P.surname.start), 0, 1);
+    if(t < P.surname.start){
+      outSurname.textContent = "—";
+      stSurname.textContent = "waiting…";
+    } else if(t <= P.surname.end){
+      stSurname.textContent = "assembling…";
+      typewriter(outSurname, State.lead.lastName, ts);
+    } else {
+      outSurname.textContent = State.lead.lastName;
+      stSurname.textContent = "locked ✓";
+    }
 
-  (function idleLoop(){
-    if(!running){
+    // EMAIL
+    const te = clamp((t - P.email.start) / (P.email.end - P.email.start), 0, 1);
+    if(t < P.email.start){
+      outEmail.textContent = "—";
+      stEmail.textContent = "waiting…";
+    } else if(t <= P.email.end){
+      stEmail.textContent = "assembling…";
+      typewriter(outEmail, State.lead.email, te);
+    } else {
+      outEmail.textContent = State.lead.email;
+      stEmail.textContent = "locked ✓";
+    }
+
+    // PHONE
+    const tp = clamp((t - P.phone.start) / (P.phone.end - P.phone.start), 0, 1);
+    if(t < P.phone.start){
+      outPhone.textContent = "—";
+      stPhone.textContent = "waiting…";
+    } else if(t <= P.phone.end){
+      stPhone.textContent = "assembling…";
+      typewriter(outPhone, State.lead.phone, tp);
+    } else {
+      outPhone.textContent = State.lead.phone;
+      stPhone.textContent = "locked ✓";
+    }
+
+    // Face scanning always active in matrix stage (for drama)
+    // but we “increase intensity” near end
+    if(t > 0.12 && t < 0.98){
+      faceStage.textContent = (t < 0.85) ? "SCANNING" : "MATCHING";
+      if(t > 0.85){
+        faceHint.textContent = "scoring similarity • verifying checksum • locking identity…";
+      }
+    }
+
+    // periodic ops logs
+    if(Math.random() < 0.16) setStageText();
+  }
+
+  // -----------------------------
+  // Final overlay (gorilla meme)
+  // -----------------------------
+  function showFinalOverlay(){
+    finalOverlay.classList.remove("hidden");
+    finalOverlay.setAttribute("aria-hidden", "false");
+
+    // try load gorilla
+    finalFallback.classList.add("hidden");
+    finalImg.style.display = "block";
+    finalImg.src = CONFIG.GORILLA_URL;
+
+    // fallback if blocked / failed
+    finalImg.onload = () => {
+      // ok
+    };
+    finalImg.onerror = () => {
+      finalImg.style.display = "none";
+      finalFallback.classList.remove("hidden");
+    };
+  }
+
+  function hideFinalOverlay(){
+    finalOverlay.classList.add("hidden");
+    finalOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  // -----------------------------
+  // Run / Stop
+  // -----------------------------
+  function stopAll(){
+    State.running = false;
+
+    stopMatrixLoop();
+    stopFaceScanner();
+
+    if(State.tickId){
+      clearInterval(State.tickId);
+      State.tickId = 0;
+    }
+  }
+
+  function resetAppToForm(){
+    stopAll();
+    hideFinalOverlay();
+
+    setSystem("IDLE");
+    timerValue.textContent = "00:00";
+
+    resetAssemblyUI();
+
+    showScreenForm();
+    fadeIn(screenForm);
+
+    // mini boot log
+    bootLog.textContent = "";
+    logBoot("boot: ok");
+    logBoot("crypto: green-only channel established");
+    logBoot("warning: this is a meme MVP");
+    logBoot("ready: waiting for input");
+  }
+
+  function startRun(){
+    if(State.running) return;
+
+    // Prepare
+    prepareLeadFromForm();
+    buildFacePool();
+
+    State.sessionId = randomHex(14).toUpperCase();
+    setSession(State.sessionId);
+
+    resetAssemblyUI();
+
+    // Transition form -> matrix
+    setSystem("ARMING");
+    fadeOut(screenForm);
+
+    setTimeout(() => {
+      showScreenMatrix();
+      fadeIn(screenMatrix);
+
+      // Start
+      setSystem("RUNNING");
+      State.running = true;
+      State.startAt = Date.now();
+
+      timerValue.textContent = msToMMSS(CONFIG.DURATION_MS);
+
+      logOps("boot: matrix_rain::init()");
+      logOps("boot: lead_assembler::start()");
+      logOps(`seed: first="${State.lead.firstName}" last="${State.lead.lastName}"`);
+      logOps("facescan: init()");
+      logOps("facescan: streaming candidates...");
+
+      startFaceScanner();
+      startMatrixLoop();
+
+      // Tick loop
+      State.tickId = setInterval(() => {
+        if(!State.running) return;
+
+        const elapsed = Date.now() - State.startAt;
+        const left = Math.max(0, CONFIG.DURATION_MS - elapsed);
+
+        timerValue.textContent = msToMMSS(left);
+        updateAssembly(elapsed);
+
+        // finish
+        if(left <= 0){
+          finishRun();
+        }
+      }, 120);
+
+    }, 360);
+  }
+
+  function finishRun(){
+    if(!State.running) return;
+
+    // abrupt stop (meme style)
+    stopAll();
+    setSystem("COMPLETE");
+
+    // Freeze matrix background (one last draw to feel “stopped”)
+    drawMatrix(0.9);
+
+    // Show final meme
+    showFinalOverlay();
+  }
+
+  // -----------------------------
+  // Idle matrix (subtle)
+  // -----------------------------
+  function idleLoop(){
+    if(!State.running){
+      // draw gentle idle background
       drawMatrix(0.65);
     }
     requestAnimationFrame(idleLoop);
-  })();
+  }
+
+  // -----------------------------
+  // Events
+  // -----------------------------
+  window.addEventListener("resize", resizeCanvas);
+
+  btnStart.addEventListener("click", () => {
+    startRun();
+  });
+
+  btnAgain.addEventListener("click", () => {
+    // regenerate: go back to screen 1 (form) like a “fresh session”
+    resetAppToForm();
+  });
+
+  // -----------------------------
+  // Init
+  // -----------------------------
+  resizeCanvas();
+  resetAppToForm();
+  idleLoop();
 })();
