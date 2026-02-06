@@ -3,137 +3,192 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Matrix Lead Generator</title>
+  <title>Matrix Lead Generator (Meme MVP)</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <canvas id="matrix"></canvas>
 
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand__dot"></div>
-      <div class="brand__text">
-        <div class="brand__title">MATRIX LEAD GENERATOR</div>
-        <div class="brand__sub">v0.1 • GitHub Pages MVP</div>
+  <!-- BACKGROUND MATRIX CANVAS -->
+  <canvas id="matrixCanvas" aria-hidden="true"></canvas>
+
+  <!-- APP SHELL -->
+  <div class="app" id="app">
+
+    <!-- TOP BAR -->
+    <header class="topbar" id="topbar">
+      <div class="topbar__left">
+        <div class="badge">
+          <span class="badge__dot"></span>
+          <span class="badge__text">BLACK OPS / LEAD ASSEMBLER</span>
+        </div>
+        <div class="topbar__meta">
+          <div class="meta__line">SYSTEM: <span id="sysState">IDLE</span></div>
+          <div class="meta__line">SESSION: <span id="sysSession">—</span></div>
+        </div>
+      </div>
+
+      <div class="topbar__right">
+        <div class="timer">
+          <span class="timer__label">TIMER</span>
+          <span class="timer__value" id="timerValue">00:00</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- SCREEN 1 -->
+    <main class="screen screen--active" id="screenForm" role="main">
+      <section class="panel panel--form">
+        <h1 class="panel__title">LEAD INPUT TERMINAL</h1>
+        <p class="panel__subtitle">
+          Эта штука выглядит как спецслужбы, но это <b>мемный MVP</b>. Никаких API. Всё рандом.
+        </p>
+
+        <div class="form">
+          <label class="field">
+            <span class="field__label">Имя</span>
+            <input class="field__input" id="firstName" type="text" placeholder="Neo" autocomplete="off" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Фамилия</span>
+            <input class="field__input" id="lastName" type="text" placeholder="Anderson" autocomplete="off" />
+          </label>
+
+          <button class="btn btn--primary" id="btnStart">
+            НАЧАТЬ ГЕНЕРАЦИЮ
+          </button>
+
+          <div class="hint">
+            <div class="hint__row">
+              <span class="hint__k">MODE</span>
+              <span class="hint__v">“SERIOUS SYSTEM”</span>
+            </div>
+            <div class="hint__row">
+              <span class="hint__k">OUTPUT</span>
+              <span class="hint__v">ABSURD ENDING</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="scanline" aria-hidden="true"></div>
+      </section>
+
+      <section class="panel panel--side">
+        <div class="terminal">
+          <div class="terminal__top">
+            <span class="dot dot--r"></span>
+            <span class="dot dot--y"></span>
+            <span class="dot dot--g"></span>
+            <span class="terminal__title">boot.log</span>
+          </div>
+          <pre class="terminal__body" id="bootLog"></pre>
+        </div>
+
+        <div class="microcard">
+          <div class="microcard__title">NOTICE</div>
+          <div class="microcard__text">
+            Это визуальный “генератор лидов”.<br/>
+            Никаких реальных данных. Только рандом.<br/>
+            Максимум пафоса. Минимум смысла.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- SCREEN 2 -->
+    <main class="screen" id="screenMatrix" role="main" aria-hidden="true">
+      <section class="hud">
+        <div class="hud__left">
+          <div class="hud__title">LEAD ASSEMBLY PIPELINE</div>
+          <div class="hud__subtitle">declassify: NO • clearance: ULTRA-GREEN • protocol: MATRIX</div>
+
+          <div class="progress">
+            <div class="progress__label">
+              <span>ASSEMBLY</span>
+              <span id="progressPct">0%</span>
+            </div>
+            <div class="progress__bar">
+              <div class="progress__fill" id="progressFill"></div>
+            </div>
+          </div>
+
+          <div class="cards">
+            <div class="card" id="cardName">
+              <div class="card__k">NAME</div>
+              <div class="card__v" id="outName">—</div>
+              <div class="card__s" id="stName">waiting…</div>
+            </div>
+            <div class="card" id="cardSurname">
+              <div class="card__k">SURNAME</div>
+              <div class="card__v" id="outSurname">—</div>
+              <div class="card__s" id="stSurname">waiting…</div>
+            </div>
+            <div class="card" id="cardEmail">
+              <div class="card__k">EMAIL</div>
+              <div class="card__v" id="outEmail">—</div>
+              <div class="card__s" id="stEmail">waiting…</div>
+            </div>
+            <div class="card" id="cardPhone">
+              <div class="card__k">PHONE</div>
+              <div class="card__v" id="outPhone">—</div>
+              <div class="card__s" id="stPhone">waiting…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud__right">
+          <div class="face">
+            <div class="face__top">
+              <div class="face__title">FACE MATCHING</div>
+              <div class="face__meta">
+                <span id="faceStage">IDLE</span>
+                <span class="sep">•</span>
+                <span id="faceScore">0.00</span>
+              </div>
+            </div>
+
+            <div class="face__frame">
+              <img id="faceImg" alt="face-scan" />
+              <div class="face__corners" aria-hidden="true">
+                <i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i>
+              </div>
+              <div class="face__scanline" aria-hidden="true"></div>
+              <div class="face__noise" aria-hidden="true"></div>
+            </div>
+
+            <div class="face__bar">
+              <div class="face__barFill" id="faceBar"></div>
+            </div>
+            <div class="face__hint" id="faceHint">waiting for target…</div>
+          </div>
+
+          <div class="logbox">
+            <div class="logbox__title">ops.stream</div>
+            <pre class="logbox__body" id="opsLog"></pre>
+          </div>
+        </div>
+      </section>
+
+      <div class="matrixVignette" aria-hidden="true"></div>
+    </main>
+
+    <!-- FINAL MEM OVERLAY -->
+    <div class="final hidden" id="finalOverlay" aria-hidden="true">
+      <div class="final__media">
+        <img id="finalImg" alt="meme" />
+        <div class="final__fallback hidden" id="finalFallback">
+          <div class="fallback__emoji">🦍🖕</div>
+          <div class="fallback__text">meme payload missing<br/>but the system is still disrespectful</div>
+        </div>
+      </div>
+
+      <div class="final__hud">
+        <div class="final__title">LEAD GENERATED SUCCESSFULLY</div>
+        <div class="final__sub">status: ABSURD • clearance: MAXIMUM • output: QUESTIONABLE</div>
+        <button class="btn btn--ghost btn--big" id="btnAgain">СГЕНЕРИРОВАТЬ ЕЩЁ</button>
       </div>
     </div>
 
-    <div class="status">
-      <div class="status__pill" id="statusPill">IDLE</div>
-      <div class="status__timer" id="timer">01:00</div>
-    </div>
-  </header>
-
-  <main class="layout">
-    <section class="panel">
-      <h1 class="panel__title">Генерация лида</h1>
-      <p class="panel__hint">
-        Введи любые данные, нажми <b>Generate</b>. В течение 60 секунд “матрица” будет пытаться собрать лида.
-        В конце включится <b>Face Scan</b>: система быстро перебирает фото как сканер лиц и фиксирует финальный кадр.
-      </p>
-
-      <div class="form">
-        <label class="field">
-          <span class="field__label">Full name</span>
-          <input id="name" class="field__input" type="text" placeholder="John Anderson" autocomplete="off" />
-        </label>
-
-        <label class="field">
-          <span class="field__label">Email</span>
-          <input id="email" class="field__input" type="email" placeholder="john@domain.com" autocomplete="off" />
-        </label>
-
-        <label class="field">
-          <span class="field__label">Phone</span>
-          <input id="phone" class="field__input" type="tel" placeholder="+49 151 2345 6789" autocomplete="off" />
-        </label>
-
-        <label class="field">
-          <span class="field__label">Country</span>
-          <input id="country" class="field__input" type="text" placeholder="Germany" autocomplete="off" />
-        </label>
-
-        <div class="actions">
-          <button id="startBtn" class="btn btn--primary">Generate lead</button>
-          <button id="resetBtn" class="btn btn--ghost" type="button">Reset</button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="result">
-        <div class="result__title">Assembler output</div>
-        <pre class="result__box" id="output">ready.</pre>
-      </div>
-    </section>
-
-    <section class="panel panel--right">
-      <div class="terminal">
-        <div class="terminal__top">
-          <span class="dot dot--r"></span>
-          <span class="dot dot--y"></span>
-          <span class="dot dot--g"></span>
-          <span class="terminal__title">lead_assembler.log</span>
-        </div>
-        <div class="terminal__body" id="log"></div>
-      </div>
-
-      <div class="mini">
-        <div class="mini__row">
-          <div class="mini__k">Mode</div>
-          <div class="mini__v" id="mode">idle</div>
-        </div>
-        <div class="mini__row">
-          <div class="mini__k">Progress</div>
-          <div class="mini__v"><span id="progress">0</span>%</div>
-        </div>
-        <div class="mini__row">
-          <div class="mini__k">Integrity</div>
-          <div class="mini__v" id="integrity">unknown</div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Финальный фуллскрин-оверлей + FaceScan HUD -->
-  <div class="final hidden" id="final">
-    <img
-      id="finalImg"
-      alt="final"
-      src="./assets/final.jpg"
-    />
-
-    <!-- HUD overlay -->
-    <div class="scanHud" aria-hidden="true">
-      <div class="scanHud__top">
-        <div class="scanHud__title">FACE SCAN</div>
-        <div class="scanHud__meta">
-          <span id="scanStage">IDLE</span>
-          <span class="scanHud__sep">•</span>
-          <span id="scanPct">0%</span>
-          <span class="scanHud__sep">•</span>
-          <span id="scanMsg">waiting</span>
-        </div>
-      </div>
-
-      <div class="scanFrame">
-        <div class="scanFrame__corner c1"></div>
-        <div class="scanFrame__corner c2"></div>
-        <div class="scanFrame__corner c3"></div>
-        <div class="scanFrame__corner c4"></div>
-        <div class="scanLine"></div>
-        <div class="scanNoise"></div>
-      </div>
-
-      <div class="scanHud__bottom">
-        <div class="scanHud__bar">
-          <div class="scanHud__barFill" id="scanBar"></div>
-        </div>
-        <div class="scanHud__hint">analyzing facial vectors • matching identity fragments • checksum verify</div>
-      </div>
-    </div>
-
-    <button class="final__close" id="finalClose">Close</button>
   </div>
 
   <script src="./script.js"></script>
