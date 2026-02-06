@@ -29,12 +29,33 @@
 
   const finalEl = $("final");
   const finalClose = $("finalClose");
+  const finalImg = $("finalImg");
+
+  // FaceScan HUD elements
+  const scanStageEl = $("scanStage");
+  const scanPctEl = $("scanPct");
+  const scanMsgEl = $("scanMsg");
+  const scanBarEl = $("scanBar");
 
   // =========================
   // Config
   // =========================
-  const DURATION_MS = 60000; // 30 секунд
+  const DURATION_MS = 60000; // 60 секунд
   const FINAL_IMAGE_URL = "./assets/final.jpg";
+
+  // 6 альтов + (опционально) финал
+  const SHUFFLE_IMAGES = [
+    "./assets/alt1.jpg",
+    "./assets/alt2.jpg",
+    "./assets/alt3.jpg",
+    "./assets/alt4.jpg",
+    "./assets/alt5.jpg",
+    "./assets/alt6.jpg"
+  ];
+
+  // когда включать “сканер лиц” (последние N мс)
+  const SCAN_WINDOW_MS = 9000;     // последние 9 секунд
+  const SHUFFLE_INTERVAL_MS = 55;  // очень быстро (55мс)
 
   // Matrix rain settings
   const CHARS = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@%&*+-=<>[]{}()";
@@ -49,6 +70,11 @@
   let rafId = 0;
   let tickId = 0;
   let assembleId = 0;
+
+  // FaceScan runtime
+  let shuffleId = 0;
+  let scanStartAt = 0;
+  let scanIndex = 0;
 
   // =========================
   // Helpers
@@ -70,7 +96,9 @@
 
   function setTimer(msLeft){
     const s = clamp(Math.ceil(msLeft / 1000), 0, 9999);
-    timerEl.textContent = `00:${pad2(Math.min(s, 99))}`;
+    const mm = Math.floor(s / 60);
+    const ss = s % 60;
+    timerEl.textContent = `${pad2(mm)}:${pad2(ss)}`;
   }
 
   function log(line){
@@ -119,6 +147,21 @@
     return lines.join("\n");
   }
 
+  function setScanHUD(stage, pct, msg){
+    if(scanStageEl) scanStageEl.textContent = stage;
+    if(scanPctEl) scanPctEl.textContent = `${pct}%`;
+    if(scanMsgEl) scanMsgEl.textContent = msg;
+    if(scanBarEl) scanBarEl.style.width = `${pct}%`;
+  }
+
+  function preloadImages(urls){
+    // Не критично, но уменьшает “мигание” от загрузки на старте scan
+    urls.forEach((u) => {
+      const img = new Image();
+      img.src = u;
+    });
+  }
+
   // =========================
   // Canvas: resize + matrix
   // =========================
@@ -134,7 +177,6 @@
 
     ctx.setTransform(dpr,0,0,dpr,0,0);
 
-    // responsive font size
     fontSize = w < 520 ? 14 : 16;
 
     columns = Math.floor(w / fontSize);
@@ -142,7 +184,6 @@
   }
 
   function drawMatrix(intensity=1){
-    // fade background
     ctx.fillStyle = `rgba(0, 0, 0, ${0.08 + (1-intensity)*0.06})`;
     ctx.fillRect(0, 0, w, h);
 
@@ -154,7 +195,6 @@
       const x = i * fontSize;
       const y = drops[i] * fontSize;
 
-      // brighter near running
       const alpha = 0.55 + Math.random()*0.35*intensity;
       ctx.fillStyle = `rgba(53, 255, 122, ${alpha})`;
       ctx.fillText(text, x, y);
@@ -165,6 +205,65 @@
         drops[i] += 1;
       }
     }
+  }
+
+  // =========================
+  // Face Scan (перебор фото)
+  // =========================
+  function showFinal(){
+    finalImg.src = FINAL_IMAGE_URL;
+    finalEl.classList.remove("hidden");
+  }
+
+  function startFaceScan(){
+    if(shuffleId) return;
+
+    // Открываем финальный оверлей, но начинаем “скан”
+    showFinal();
+
+    scanStartAt = Date.now();
+    scanIndex = 0;
+
+    finalEl.classList.add("isScanning");
+    setScanHUD("SCAN", 0, "initializing");
+
+    log("facescan: init()");
+    log("facescan: loading candidates...");
+    log("facescan: analyzing facial vectors...");
+
+    shuffleId = setInterval(() => {
+      // Перебор 6 фоток “как сканер”
+      finalImg.src = SHUFFLE_IMAGES[scanIndex % SHUFFLE_IMAGES.length];
+      scanIndex++;
+
+      const elapsed = Date.now() - scanStartAt;
+      const pct = Math.floor(clamp((elapsed / SCAN_WINDOW_MS) * 100, 0, 99));
+
+      const msgs = [
+        "detecting landmarks",
+        "extracting embeddings",
+        "matching identity fragments",
+        "scoring similarity",
+        "verifying checksum",
+        "reducing entropy"
+      ];
+      const msg = msgs[scanIndex % msgs.length];
+
+      setScanHUD("SCAN", pct, msg);
+    }, SHUFFLE_INTERVAL_MS);
+  }
+
+  function stopFaceScanAndLockFinal(){
+    if(shuffleId) clearInterval(shuffleId);
+    shuffleId = 0;
+
+    finalEl.classList.remove("isScanning");
+
+    // фиксируем итог
+    finalImg.src = FINAL_IMAGE_URL;
+    setScanHUD("LOCK", 100, "match locked");
+    log("facescan: match locked");
+    log("facescan: final frame locked");
   }
 
   // =========================
@@ -183,13 +282,12 @@
 
     setOutput("ready.");
     logEl.textContent = "";
-    finalEl.classList.add("hidden");
-  }
 
-  function showFinal(){
-    const img = $("finalImg");
-    img.src = FINAL_IMAGE_URL;
-    finalEl.classList.remove("hidden");
+    // reset final overlay + scan hud
+    finalEl.classList.add("hidden");
+    finalEl.classList.remove("isScanning");
+    finalImg.src = FINAL_IMAGE_URL;
+    setScanHUD("IDLE", 0, "waiting");
   }
 
   function stopAllTimers(){
@@ -201,10 +299,16 @@
 
     if(assembleId) clearInterval(assembleId);
     assembleId = 0;
+
+    if(shuffleId) clearInterval(shuffleId);
+    shuffleId = 0;
   }
 
   function start(){
     if(running) return;
+
+    // на старте прелоадим alt-фото и финал, чтобы скан был “быстрый”
+    preloadImages([...SHUFFLE_IMAGES, FINAL_IMAGE_URL]);
 
     const seed = getLeadSeed();
     running = true;
@@ -246,6 +350,13 @@
       else if(pct < 90) setIntegrity("high");
       else setIntegrity("almost");
 
+      // Запускаем Face Scan в последние SCAN_WINDOW_MS
+      if(left <= SCAN_WINDOW_MS && left > 0 && !shuffleId){
+        setMode("facescan");
+        log(`facescan: window opened (${Math.ceil(SCAN_WINDOW_MS/1000)}s)`);
+        startFaceScan();
+      }
+
       if(left <= 0){
         finish(seed);
       }
@@ -273,7 +384,14 @@
     if(!running) return;
 
     running = false;
-    stopAllTimers();
+
+    // останавливаем таймеры, но оставляем финальный экран
+    if(rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+    if(tickId) clearInterval(tickId);
+    tickId = 0;
+    if(assembleId) clearInterval(assembleId);
+    assembleId = 0;
 
     setStatus("COMPLETE", false);
     setMode("complete");
@@ -297,7 +415,13 @@
       ].join("\n")
     );
 
-    showFinal();
+    // Если скан шел — фиксируем финал, если нет — просто показываем финал
+    if(shuffleId){
+      stopFaceScanAndLockFinal();
+    }else{
+      showFinal();
+      setScanHUD("LOCK", 100, "match locked");
+    }
   }
 
   // =========================
@@ -306,6 +430,7 @@
   window.addEventListener("resize", resize);
 
   startBtn.addEventListener("click", () => {
+    // если уже открыт финал — не стартуем
     if(!finalEl.classList.contains("hidden")) return;
     start();
   });
@@ -317,6 +442,10 @@
 
   finalClose.addEventListener("click", () => {
     finalEl.classList.add("hidden");
+    // если пользователь закрыл во время скана — стопаем скан и фиксируем
+    if(shuffleId){
+      stopFaceScanAndLockFinal();
+    }
   });
 
   // =========================
