@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Matrix Lead Generator</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__dot"></div>
+      <div class="brand__text">
+        <div class="brand__title">MATRIX LEAD GENERATOR</div>
+        <div class="brand__sub">v0.1 • GitHub Pages MVP</div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="status__pill" id="statusPill">IDLE</div>
+      <div class="status__timer" id="timer">00:30</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h1 class="panel__title">Генерация лида</h1>
+      <p class="panel__hint">
+        Введи любые данные, нажми <b>Generate</b>. В течение 30 секунд “матрица” будет пытаться собрать лида.
+      </p>
+
+      <div class="form">
+        <label class="field">
+          <span class="field__label">Full name</span>
+          <input id="name" class="field__input" type="text" placeholder="John Anderson" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Email</span>
+          <input id="email" class="field__input" type="email" placeholder="john@domain.com" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Phone</span>
+          <input id="phone" class="field__input" type="tel" placeholder="+49 151 2345 6789" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Country</span>
+          <input id="country" class="field__input" type="text" placeholder="Germany" autocomplete="off" />
+        </label>
+
+        <div class="actions">
+          <button id="startBtn" class="btn btn--primary">Generate lead</button>
+          <button id="resetBtn" class="btn btn--ghost" type="button">Reset</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="result">
+        <div class="result__title">Assembler output</div>
+        <pre class="result__box" id="output">ready.</pre>
+      </div>
+    </section>
+
+    <section class="panel panel--right">
+      <div class="terminal">
+        <div class="terminal__top">
+          <span class="dot dot--r"></span>
+          <span class="dot dot--y"></span>
+          <span class="dot dot--g"></span>
+          <span class="terminal__title">lead_assembler.log</span>
+        </div>
+        <div class="terminal__body" id="log"></div>
+      </div>
+
+      <div class="mini">
+        <div class="mini__row">
+          <div class="mini__k">Mode</div>
+          <div class="mini__v" id="mode">idle</div>
+        </div>
+        <div class="mini__row">
+          <div class="mini__k">Progress</div>
+          <div class="mini__v"><span id="progress">0</span>%</div>
+        </div>
+        <div class="mini__row">
+          <div class="mini__k">Integrity</div>
+          <div class="mini__v" id="integrity">unknown</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Финальный фуллскрин-оверлей -->
+  <div class="final hidden" id="final">
+    <img
+      id="finalImg"
+      alt="final"
+      src="https://i.pinimg.com/1200x/eb/59/fa/eb59fa1edfc4dbb550313c4c046bcdeb.jpg"
+    />
+    <button class="final__close" id="finalClose">Close</button>
+  </div>
+
+  <script src="./script.js"></script>
+</body>
+</html>
