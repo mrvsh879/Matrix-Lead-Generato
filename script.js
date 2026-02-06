@@ -33,7 +33,7 @@
   // =========================
   // Config
   // =========================
-  const DURATION_MS = 30000; // 30 секунд
+  const DURATION_MS = 60000; // 30 секунд
   const FINAL_IMAGE_URL = "./assets/final.jpg";
 
   // Matrix rain settings
