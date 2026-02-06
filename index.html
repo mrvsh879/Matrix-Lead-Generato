@@ -28,7 +28,8 @@
     <section class="panel">
       <h1 class="panel__title">Генерация лида</h1>
       <p class="panel__hint">
-        Введи любые данные, нажми <b>Generate</b>. В течение 30 секунд “матрица” будет пытаться собрать лида.
+        Введи любые данные, нажми <b>Generate</b>. В течение 60 секунд “матрица” будет пытаться собрать лида.
+        В конце включится <b>Face Scan</b>: система быстро перебирает фото как сканер лиц и фиксирует финальный кадр.
       </p>
 
       <div class="form">
@@ -94,13 +95,44 @@
     </section>
   </main>
 
-  <!-- Финальный фуллскрин-оверлей -->
+  <!-- Финальный фуллскрин-оверлей + FaceScan HUD -->
   <div class="final hidden" id="final">
     <img
       id="finalImg"
       alt="final"
       src="./assets/final.jpg"
     />
+
+    <!-- HUD overlay -->
+    <div class="scanHud" aria-hidden="true">
+      <div class="scanHud__top">
+        <div class="scanHud__title">FACE SCAN</div>
+        <div class="scanHud__meta">
+          <span id="scanStage">IDLE</span>
+          <span class="scanHud__sep">•</span>
+          <span id="scanPct">0%</span>
+          <span class="scanHud__sep">•</span>
+          <span id="scanMsg">waiting</span>
+        </div>
+      </div>
+
+      <div class="scanFrame">
+        <div class="scanFrame__corner c1"></div>
+        <div class="scanFrame__corner c2"></div>
+        <div class="scanFrame__corner c3"></div>
+        <div class="scanFrame__corner c4"></div>
+        <div class="scanLine"></div>
+        <div class="scanNoise"></div>
+      </div>
+
+      <div class="scanHud__bottom">
+        <div class="scanHud__bar">
+          <div class="scanHud__barFill" id="scanBar"></div>
+        </div>
+        <div class="scanHud__hint">analyzing facial vectors • matching identity fragments • checksum verify</div>
+      </div>
+    </div>
+
     <button class="final__close" id="finalClose">Close</button>
   </div>
 
